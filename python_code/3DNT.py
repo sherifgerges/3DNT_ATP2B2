@@ -197,7 +197,7 @@ def neighborhood_test(df, pdb_file, radius, print_neighborhoods=False, print_top
     return df_results, df_sig_nbhd, top_residues, top_p
 
 
-df = get_schema_asd_from_mark()
+df = load_schema_asd_variants()
 pdb_file = "data/atp2b2_wt_dec2024_model_0.pdb"
 radius = 15
 

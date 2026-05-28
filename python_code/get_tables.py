@@ -94,7 +94,7 @@ def get_schema_and_vsms():
     df = explode_table(dfh)
     return df
 
-def get_schema_asd_from_mark():
+def load_schema_asd_variants():
     dfcase = pd.read_csv('data/atp2b2_case_variants_schema_asd.tsv')
     dfcase['is_case'] = 1
     dfcontrol = pd.read_csv('data/atp2b2_control_variants_schema_asd.tsv')
