@@ -46,6 +46,9 @@ pip install numpy pandas scipy biopython
 
 ### AlphaFold3 analysis
 
+This script runs 3DNT on the AlphaFold3-predicted structure of human ATP2B2 (UniProt Q01814-1). It uses the AlphaFold3 model (`data/atp2b2_wt_dec2024_model_0.pdb`) and the corresponding predicted aligned error matrix (`data/pae.scores_atp2b2_wt_dec2024_model_0.tsv`) together with the case and control variant tables in `data/`.
+
+
 From the repository root:
 
 ```
