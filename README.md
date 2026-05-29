@@ -102,7 +102,7 @@ When the cryo-EM script runs, canonical positions are remapped via global pairwi
 
 If you use this code, please cite the manuscript above. A Zenodo archive of the released version is available at:
 
-> Gerges, S. *3DNT_ATP2B2: 3D neighborhood test for ATP2B2.* Zenodo. https://doi.org/10.5281/zenodo.XXXXXXX
+> Gerges, S. *3DNT_ATP2B2: 3D neighborhood test for ATP2B2.* Zenodo. https://doi.org/10.5281/zenodo.20444372
 
 ## License
 
