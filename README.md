@@ -28,26 +28,35 @@ This repository contains the implementations used for the two structural models 
 
 The cryo-EM PDB file (PDB 28JP) is not included in this repository; download it from rcsb.org after publication and place it at `data/pmca_e1ca_model.pdb` to run `3DNT_cryoEM.py`.
 
-## Requirements
+## System requirements
 
-- Python 3.10+
-- numpy
-- pandas
-- scipy
-- biopython >= 1.80
+**Software dependencies (tested versions):**
 
-Install:
+- Python 3.10
+- numpy 1.26
+- pandas 2.1
+- scipy 1.11
+- biopython 1.83
+
+**Operating systems tested:** macOS 14 (Sonoma), Ubuntu 22.04.
+
+**Non-standard hardware:** none required. Runs on a standard laptop; no GPU.
+
+## Installation guide
 
 ```
-pip install numpy pandas scipy biopython
+git clone https://github.com/sherifgerges/3DNT_ATP2B2.git
+cd 3DNT_ATP2B2
+pip install numpy==1.26 pandas==2.1 scipy==1.11 biopython==1.83
 ```
 
-## Running
+**Typical install time on a normal desktop:** < 2 minutes (dependency install only; no compilation).
+
+## Demo
 
 ### AlphaFold3 analysis
 
 This script runs 3DNT on the AlphaFold3-predicted structure of human ATP2B2 (UniProt Q01814-1). It uses the AlphaFold3 model (`data/atp2b2_wt_dec2024_model_0.pdb`) and the corresponding predicted aligned error matrix (`data/pae.scores_atp2b2_wt_dec2024_model_0.tsv`) together with the case and control variant tables in `data/`.
-
 
 From the repository root:
 
@@ -56,6 +65,10 @@ python python_code/3DNT.py
 ```
 
 Reads the case/control variant tables and the AlphaFold3 model in `data/`, applies a residue pLDDT > 50 filter and a residue-pair PAE inflation (> 15 Å in both directions), and prints per-residue Bonferroni-significant centers along with the top-ranked neighborhood.
+
+**Expected output:** A printed table of Bonferroni-significant residue centers and the top-ranked neighborhood. On the bundled ATP2B2 data, hotspot residues in the Ca²⁺ pore (E457, V885) and the ATP:Mg²⁺ pocket (R508, G821) reach significance, reproducing the AlphaFold3 hotspots reported in the manuscript.
+
+**Expected run time on a normal desktop:** < 1 minute.
 
 ### Cryo-EM analysis
 
@@ -82,6 +95,10 @@ CLI arguments (defaults shown):
 --chain     A
 ```
 
+**Expected output:** Three CSV files in `results/` containing the residue-to-isoform mapping, per-residue 3DNT statistics, and union-hotspot summary. The Ca²⁺-pore and ATP:Mg²⁺ pocket hotspots replicate the AlphaFold3 analysis at Pearson r = 0.97.
+
+**Expected run time on a normal desktop:** < 2 minutes.
+
 ## Method
 
 For each residue r in the protein structure:
@@ -100,6 +117,21 @@ Variant TSVs must contain at minimum:
 - `aa_pos` — integer residue position in canonical ATP2B2 numbering.
 
 When the cryo-EM script runs, canonical positions are remapped via global pairwise alignment to the PMCA2z/a isoform and then to the cryo-EM model's residue numbering. The script includes a hard-coded sanity check that V885 in the canonical numbering corresponds to V840 in the cryo-EM numbering (the anchor reported in the manuscript).
+
+## Running on your own data
+
+To apply 3DNT to a different protein:
+
+1. Replace `data/atp2b2_case_variants_schema_asd.tsv` and `data/atp2b2_control_variants_schema_asd.tsv` with your case and control variant TSVs (same columns: `Mutation` or `aa_pos`).
+2. Replace the structural model in `data/` with the PDB-format structure of your protein (AlphaFold or experimental).
+3. For AlphaFold models, also supply the matching PAE-score TSV.
+4. Update the input paths at the top of `python_code/3DNT.py` (or pass `--pdb` / `--case` / `--control` to `3DNT_cryoEM.py`) and rerun.
+
+The cryo-EM script's hard-coded V885→V840 sanity check is specific to PMCA2z/a; remove or replace it when applying the script to other proteins.
+
+## Reproduction
+
+Running `python python_code/3DNT.py` with the bundled data reproduces the AlphaFold3 hotspot calls reported in the manuscript. Running `python python_code/3DNT_cryoEM.py` after placing PDB 28JP at `data/pmca_e1ca_model.pdb` reproduces the cryo-EM hotspot calls and the cross-model Pearson r = 0.97 concordance.
 
 ## Citation
 
