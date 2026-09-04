@@ -66,7 +66,7 @@ python python_code/3DNT.py
 
 Reads the case/control variant tables and the AlphaFold3 model in `data/`, applies a residue pLDDT > 50 filter and a residue-pair PAE inflation (> 15 Å in both directions), and prints per-residue Bonferroni-significant centers along with the top-ranked neighborhood.
 
-**Expected output:** A printed table of Bonferroni-significant residue centers and the top-ranked neighborhood. On the bundled ATP2B2 data, hotspot residues in the Ca²⁺ pore (E457, V885) and the ATP:Mg²⁺ pocket (R508, G821) reach significance, reproducing the AlphaFold3 hotspots reported in the manuscript.
+
 
 **Expected run time on a normal desktop:** < 1 minute.
 
@@ -95,7 +95,6 @@ CLI arguments (defaults shown):
 --chain     A
 ```
 
-**Expected output:** Three CSV files in `results/` containing the residue-to-isoform mapping, per-residue 3DNT statistics, and union-hotspot summary. The Ca²⁺-pore and ATP:Mg²⁺ pocket hotspots replicate the AlphaFold3 analysis at Pearson r = 0.97.
 
 **Expected run time on a normal desktop:** < 2 minutes.
 
@@ -129,9 +128,6 @@ To apply 3DNT to a different protein:
 
 The cryo-EM script's hard-coded V885→V840 sanity check is specific to PMCA2z/a; remove or replace it when applying the script to other proteins.
 
-## Reproduction
-
-Running `python python_code/3DNT.py` with the bundled data reproduces the AlphaFold3 hotspot calls reported in the manuscript. Running `python python_code/3DNT_cryoEM.py` after placing PDB 28JP at `data/pmca_e1ca_model.pdb` reproduces the cryo-EM hotspot calls and the cross-model Pearson r = 0.97 concordance.
 
 ## Citation
 
