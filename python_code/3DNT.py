@@ -51,6 +51,10 @@ def get_pairwise_distances(pdb_file, pae_path=PAE_PATH, pae_cutoff=PAE_CUTOFF):
     bad = (pae_scores > pae_cutoff) & (pae_scores.T > pae_cutoff)
     pairwise_distances[bad] = 1000
 
+    # A residue lies within its own neighborhood. Set explicitly, and after
+    # the PAE step, so the convention is visible and cannot be overwritten.
+    np.fill_diagonal(pairwise_distances, 0.0)
+
     return pairwise_distances
 
 
