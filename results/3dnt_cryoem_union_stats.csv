@@ -1,2 +1,0 @@
-n_significant_centers,significant_centers,union_n_residues,union_total_resolved_residues,union_residue_pct,union_case,total_case,union_case_pct,union_ctrl,total_ctrl,union_ctrl_pct,union_odds_ratio,union_p_value
-4,"[107, 113, 412, 840]",225,970,0.23195876288659795,22,62,0.3548387096774194,14,191,0.07329842931937172,6.953571428571428,3.7510202233660877e-07
