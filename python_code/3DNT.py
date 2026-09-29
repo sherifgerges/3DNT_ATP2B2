@@ -9,7 +9,7 @@ PLDDT_CUTOFF = 50
 PAE_CUTOFF = 15
 
 
-def get_schema_asd_from_mark():
+def load_schema_asd_variants():
     case_df = pd.read_csv("data/atp2b2_case_variants_schema_asd.tsv", sep="\t")
     control_df = pd.read_csv("data/atp2b2_control_variants_schema_asd.tsv", sep="\t")
 
@@ -17,6 +17,7 @@ def get_schema_asd_from_mark():
     control_df["is_case"] = 0
 
     df = pd.concat([case_df, control_df], ignore_index=True)
+    df["aa_pos"] = df["HGVSp/c"].str.extract(r"(\d+)").astype(int)
     return df
 
 
