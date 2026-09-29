@@ -1,144 +1,119 @@
-# 3D Neighborhood Test (3DNT)
+# 3DNT — ATP2B2
 
-Code for the 3D neighborhood test (3DNT), a structure-based method for detecting spatial clustering of missense variants in protein structures, as applied to ATP2B2 in:
+The 3D neighborhood test applied to ATP2B2, as reported in Gerges et al.
 
-> Gerges, S. et al. *Genetic and structural evidence links Ca²⁺ dysregulation and ATP2B2 to neuropsychiatric illness.* (Manuscript submitted, 2026.)
-
-3DNT places a 15 Å sphere around each residue carrying at least one variant and uses a one-sided Fisher's exact test to ask whether case-derived variants are concentrated in that neighborhood relative to the rest of the protein, with Bonferroni correction across tested residues.
-
-This repository contains the implementations used for the two structural models in the paper: the AlphaFold3 prediction of canonical ATP2B2, and the cryo-EM structure of human PMCA2z/a (PDB 28JP).
-
-## Repository layout
-
-```
-.
-├── README.md
-├── LICENSE
-├── data/
-│   ├── atp2b2_case_variants_schema_asd.tsv
-│   ├── atp2b2_control_variants_schema_asd.tsv
-│   ├── atp2b2_wt_dec2024_model_0.pdb        (AlphaFold3 model)
-│   └── pae.scores_atp2b2_wt_dec2024_model_0.tsv
-├── python_code/
-│   ├── 3DNT.py                              (AlphaFold3 structure analysis)
-│   ├── 3DNT_cryoEM.py                       (cryo-EM PMCA2z/a analysis)
-│   └── get_tables.py                        (shared variant loader)
-└── results/                                 (output of running the scripts)
-```
-
-The cryo-EM PDB file (PDB 28JP) is not included in this repository; download it from rcsb.org after publication and place it at `data/pmca_e1ca_model.pdb` to run `3DNT_cryoEM.py`.
-
-## System requirements
-
-**Software dependencies (tested versions):**
-
-- Python 3.10
-- numpy 1.26
-- pandas 2.1
-- scipy 1.11
-- biopython 1.83
-
-**Operating systems tested:** macOS 14 (Sonoma), Ubuntu 22.04.
-
-**Non-standard hardware:** none required. Runs on a standard laptop; no GPU.
-
-## Installation guide
-
-```
-git clone https://github.com/sherifgerges/3DNT_ATP2B2.git
-cd 3DNT_ATP2B2
-pip install numpy==1.26 pandas==2.1 scipy==1.11 biopython==1.83
-```
-
-**Typical install time on a normal desktop:** < 2 minutes (dependency install only; no compilation).
-
-## Demo
-
-### AlphaFold3 analysis
-
-This script runs 3DNT on the AlphaFold3-predicted structure of human ATP2B2 (UniProt Q01814-1). It uses the AlphaFold3 model (`data/atp2b2_wt_dec2024_model_0.pdb`) and the corresponding predicted aligned error matrix (`data/pae.scores_atp2b2_wt_dec2024_model_0.tsv`) together with the case and control variant tables in `data/`.
-
-From the repository root:
-
-```
-python python_code/3DNT.py
-```
-
-Reads the case/control variant tables and the AlphaFold3 model in `data/`, applies a residue pLDDT > 50 filter and a residue-pair PAE inflation (> 15 Å in both directions), and prints per-residue Bonferroni-significant centers along with the top-ranked neighborhood.
-
-
-
-**Expected run time on a normal desktop:** < 1 minute.
-
-### Cryo-EM analysis
-
-From the repository root, after obtaining the cryo-EM PDB:
-
-```
-python python_code/3DNT_cryoEM.py
-```
-
-Maps variants from canonical ATP2B2 numbering (UniProt Q01814-1) to the PMCA2z/a isoform (UniProt Q01814-4) and then to the residue numbering of the cryo-EM model, runs 3DNT on the experimental structure, and writes:
-
-- `results/mutation_mapping_PMCA2za.csv`
-- `results/3dnt_cryoem_per_residue.csv`
-- `results/3dnt_cryoem_union_stats.csv`
-
-CLI arguments (defaults shown):
-
-```
---case      data/atp2b2_case_variants_schema_asd.tsv
---control   data/atp2b2_control_variants_schema_asd.tsv
---pdb       data/pmca_e1ca_model.pdb
---out-dir   results
---radius    15.0
---chain     A
-```
-
-
-**Expected run time on a normal desktop:** < 2 minutes.
+> Gerges S, Straarup NC, El-Brolosy MA, et al. Genetic and structural
+> evidence links Ca²⁺ dysregulation and ATP2B2 to neuropsychiatric illness.
+> bioRxiv 2025.08.25.672202.
 
 ## Method
 
-For each residue r in the protein structure:
+For each residue carrying at least one variant, every residue within 15 Å is
+collected into a neighborhood. A one-sided Fisher's exact test compares the
+case:control ratio inside that neighborhood with the ratio across the rest of
+the protein.
 
-1. Define a spherical neighborhood of radius 15 Å around r, using minimum atom-atom distances between r and every other residue (standard amino acid atoms only; alternate locations restricted to the primary conformer).
-2. For AlphaFold3 models, exclude residues with mean pLDDT ≤ 50 and inflate distances between residue pairs whose predicted aligned error exceeds 15 Å in both directions.
-3. Count case and control variants inside vs. outside the neighborhood.
-4. Test for case enrichment with a one-sided Fisher's exact test (`alternative='greater'`).
-5. Apply Bonferroni correction across the unique residues tested (those carrying at least one variant after filtering).
+Four details define the test:
 
-## Input formats
+1. **Distances are minimum interatomic**, not Cα–Cα, so side-chain contacts
+   count.
+2. **A residue lies within its own neighborhood.** Variants at the center
+   position contribute to the test at that center. This is set explicitly
+   (`np.fill_diagonal(..., 0.0)`) and applies identically to the
+   unconditional, conditional, AlphaFold3 and cryo-EM analyses.
+3. **Residue pairs with poor mutual confidence are down-weighted.** Where the
+   predicted aligned error exceeds 15 Å in *both* directions, the pair is
+   pushed to 1000 Å so it cannot form a neighborhood. The diagonal is exempt.
+   This applies to AlphaFold3 models only.
+4. **Only variant-bearing residues are tested as centers.**
 
-Variant TSVs must contain at minimum:
+For the AlphaFold3 model, residues with mean pLDDT ≤ 50 are excluded. The
+cryo-EM structure carries real temperature factors in the B-factor column, so
+no confidence filter is applied there.
 
-- `Mutation` — substitution string in canonical ATP2B2 numbering, e.g. `E457K`, or
-- `aa_pos` — integer residue position in canonical ATP2B2 numbering.
+**Multiple testing.** Neighborhoods overlap, so per-center p-values are not
+independent and Bonferroni over tested residues is conservative. The primary
+correction is permutation: case and control labels are shuffled 1,000 times
+with variant positions held fixed, the scan re-run at every tested residue,
+and the minimum p-value per permutation forms the family-wise null. Both
+thresholds are reported.
 
-When the cryo-EM script runs, canonical positions are remapped via global pairwise alignment to the PMCA2z/a isoform and then to the cryo-EM model's residue numbering. The script includes a hard-coded sanity check that V885 in the canonical numbering corresponds to V840 in the cryo-EM numbering (the anchor reported in the manuscript).
+## Install
 
-## Running on your own data
+```bash
+git clone https://github.com/sherifgerges/3DNT_ATP2B2.git
+cd 3DNT_ATP2B2
+pip install numpy pandas scipy biopython
+```
 
-To apply 3DNT to a different protein:
+## Run
 
-1. Replace `data/atp2b2_case_variants_schema_asd.tsv` and `data/atp2b2_control_variants_schema_asd.tsv` with your case and control variant TSVs (same columns: `Mutation` or `aa_pos`).
-2. Replace the structural model in `data/` with the PDB-format structure of your protein (AlphaFold or experimental).
-3. For AlphaFold models, also supply the matching PAE-score TSV.
-4. Update the input paths at the top of `python_code/3DNT.py` (or pass `--pdb` / `--case` / `--control` to `3DNT_cryoEM.py`) and rerun.
+```bash
+python python_code/3DNT.py                                 # AlphaFold3 scan
+python python_code/3DNT_cryoEM.py                          # cryo-EM scan
+python python_code/3DNT_permutation.py                     # permutation, AlphaFold3
+python python_code/3DNT_permutation.py --structure cryoem  # permutation, cryo-EM
+```
 
-The cryo-EM script's hard-coded V885→V840 sanity check is specific to PMCA2z/a; remove or replace it when applying the script to other proteins.
+Outputs are written to `results/`, which is not tracked.
 
+## Expected output
 
-## Citation
+**AlphaFold3** — 324 variants in, 251 after the pLDDT filter, 217 residues
+tested, Bonferroni 2.304 × 10⁻⁴:
 
-If you use this code, please cite the manuscript above. A Zenodo archive of the released version is available at:
+| center | p |
+|---|---|
+| 885 | 1.016 × 10⁻⁵ |
+| 107 | 3.403 × 10⁻⁵ |
+| 448 | 3.403 × 10⁻⁵ |
+| 457 | 3.743 × 10⁻⁵ |
+| 113 | 5.819 × 10⁻⁵ |
+| 446 | 1.444 × 10⁻⁴ |
+| 913 | 1.444 × 10⁻⁴ |
 
-> Gerges, S. *3DNT_ATP2B2: 3D neighborhood test for ATP2B2.* Zenodo. https://doi.org/10.5281/zenodo.20444372
+Permutation: threshold 9.032 × 10⁻⁴, 0/1000 permutations reached the observed
+value at residue 885, FWER-corrected P < 1/1001.
+
+**Cryo-EM** — 253 of 324 variants map to the PMCA2z/a isoform, 219 residues
+tested, 62 case and 191 control. Residues 107, 412 and 840 share a p-value of
+9.175 × 10⁻⁶ (OR 8.99) because their neighborhoods contain the same variants;
+412 and 840 are canonical E457 and V885. Permutation threshold 1.067 × 10⁻³,
+0/1000.
+
+## Data
+
+| file | contents |
+|---|---|
+| `data/atp2b2_case_variants_schema_asd.tsv` | 83 case variants, canonical numbering |
+| `data/atp2b2_control_variants_schema_asd.tsv` | 241 control variants |
+| `data/atp2b2_wt_dec2024_model_0.pdb` | AlphaFold3 model, pLDDT in the B-factor column |
+| `data/pae.scores_atp2b2_wt_dec2024_model_0.tsv` | predicted aligned error, 1243 × 1243 |
+| `data/pmca_e1ca_model.pdb` | cryo-EM structure, human PMCA2z/a, E1-Ca state |
+| `data/mutation_mapping_PMCA2za.csv` | canonical ATP2B2 → PMCA2z/a residue correspondence |
+
+Variants observed in both cases and controls are excluded, as are synonymous
+changes; recurrent observations of the same substitution are collapsed to one
+row.
+
+**Residue numbering.** Canonical ATP2B2 and PMCA2z/a numbering differ by a
+non-constant offset: 0 before the z/a splice deletion, 45 after. E457 is E412
+in the structure, V885 is V840, T107 is unchanged. The correspondence is
+shipped as `mutation_mapping_PMCA2za.csv` rather than recomputed by sequence
+alignment. The cryo-EM script also *writes* a file of that name to `results/`;
+the copy in `data/` is the input.
+
+## Limits
+
+- The test identifies regions where case variants concentrate. It does not
+  identify individual causal variants; treat the output as prioritization.
+- Overlapping neighborhoods mean the number of significant centers exceeds the
+  number of distinct clusters. Residues 446 and 448 are two apart; 107, 113 and
+  117 sit together; 885 and 913 are both in the Ca²⁺ site.
+- The pLDDT and PAE filters exclude disordered regions, so signal there is
+  missed rather than reported as absent.
+- Variants seen only in controls are not necessarily benign.
 
 ## License
 
-MIT (see `LICENSE`).
-
-## Contact
-
-Sherif Gerges — sherif_gerges@g.harvard.edu
+See `LICENSE`.
