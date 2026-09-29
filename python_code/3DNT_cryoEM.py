@@ -124,11 +124,15 @@ def load_schema_asd_variants(case_path: Path, control_path: Path) -> pd.DataFram
     control_df["is_case"] = 0
     df = pd.concat([case_df, control_df], ignore_index=True)
 
-    # Backfill aa_pos from Mutation if needed.
+    # Backfill aa_pos from Mutation or HGVSp/c if needed.
     if "aa_pos" not in df.columns:
-        if "Mutation" not in df.columns:
-            raise ValueError("Variant tables must contain 'aa_pos' or 'Mutation'.")
-        df["aa_pos"] = df["Mutation"].str.extract(r"(\d+)").astype(int)
+        for col in ("Mutation", "HGVSp/c"):
+            if col in df.columns:
+                df["aa_pos"] = df[col].str.extract(r"(\d+)").astype(int)
+                break
+        else:
+            raise ValueError(
+                "Variant tables must contain 'aa_pos', 'Mutation' or 'HGVSp/c'.")
     return df
 
 
@@ -252,71 +256,38 @@ def pdb_sequence_and_index(pdb_path: Path, chain_id: str) -> tuple[str, dict[int
 
 def remap_variants_to_pdb(
     df: pd.DataFrame,
-    canonical_seq: str,
-    isoform_seq: str,
-    pdb_path: Path,
-    chain_id: str = "A",
+    mapping_path: Path,
+    **kwargs,
 ) -> pd.DataFrame:
-    """Remap variants from canonical ATP2B2 positions to PDB residue numbers."""
-    canon_to_iso = align_position_map(canonical_seq, isoform_seq)
-    pdb_seq, pdb_seq_pos_to_pdb_resnum = pdb_sequence_and_index(pdb_path, chain_id)
-    iso_to_pdb_seq_pos = align_position_map(isoform_seq, pdb_seq)
+    """Map canonical ATP2B2 positions onto PMCA2z/a numbering.
 
-    # Sanity check: the V885 -> V840 anchor must survive the canonical->isoform map.
-    anchor_iso = canon_to_iso.get(ANCHOR_CANONICAL_POS)
-    if anchor_iso != ANCHOR_ISOFORM_POS:
-        raise RuntimeError(
-            f"Alignment anchor check failed: canonical residue "
-            f"{ANCHOR_CANONICAL_POS} mapped to isoform {anchor_iso}, "
-            f"expected {ANCHOR_ISOFORM_POS}. Inspect sequences before proceeding."
-        )
+    Reads the curated correspondence table rather than recomputing a
+    sequence alignment. The offset between canonical and PMCA2z/a numbering
+    is not constant (0 before the z/a splice deletion, 45 after), so the
+    mapping is shipped as data and can be inspected directly.
 
-    rows: list[dict] = []
+    Columns: raw, original_resi, new_resi, is_case, status, remapped_mut.
+    """
+    m = pd.read_csv(mapping_path)
+    lookup = {int(r.original_resi): r for r in m.itertuples()}
+
+    rows = []
     for _, row in df.iterrows():
-        mut_str = row.get("Mutation")
-        info = parse_mutation(mut_str) if isinstance(mut_str, str) else {
-            "ref": None, "pos": None, "alt": None, "kind": "unknown", "raw": mut_str
-        }
         canon_pos = int(row["aa_pos"])
-        is_case = int(row["is_case"])
-
-        iso_pos = canon_to_iso.get(canon_pos)
-        if iso_pos is None:
-            rows.append({
-                "raw": info["raw"], "original_resi": canon_pos, "new_resi": None,
-                "is_case": is_case, "status": "absent_in_isoform", "remapped_mut": None,
-            })
-            continue
-
-        pdb_seq_pos = iso_to_pdb_seq_pos.get(iso_pos)
-        if pdb_seq_pos is None or pdb_seq_pos not in pdb_seq_pos_to_pdb_resnum:
-            rows.append({
-                "raw": info["raw"], "original_resi": canon_pos, "new_resi": None,
-                "is_case": is_case, "status": "absent_in_structure", "remapped_mut": None,
-            })
-            continue
-
-        resnum, icode = pdb_seq_pos_to_pdb_resnum[pdb_seq_pos]
-        new_resi = f"{resnum}{icode}" if icode else str(resnum)
-
-        remapped_mut: str | None = None
-        if info["kind"] in ("sub", "stop"):
-            remapped_mut = f"{info['ref']}{new_resi}{info['alt']}"
-        elif info["kind"] == "del":
-            remapped_mut = f"{info['ref']}{new_resi}del"
-
-        rows.append({
-            "raw": info["raw"], "original_resi": canon_pos, "new_resi": new_resi,
-            "is_case": is_case, "status": "mapped", "remapped_mut": remapped_mut,
-        })
-
+        rec = lookup.get(canon_pos)
+        if rec is None or pd.isna(rec.new_resi):
+            rows.append({"raw": rec.raw if rec is not None else None,
+                         "original_resi": canon_pos, "new_resi": None,
+                         "is_case": int(row["is_case"]),
+                         "status": "absent_in_isoform", "remapped_mut": None})
+        else:
+            rows.append({"raw": rec.raw, "original_resi": canon_pos,
+                         "new_resi": int(rec.new_resi),
+                         "is_case": int(row["is_case"]),
+                         "status": "mapped", "remapped_mut": rec.remapped_mut})
     out = pd.DataFrame(rows)
-    n_total = len(out)
-    n_mapped = int((out["status"] == "mapped").sum())
-    print(f"  Total variants:           {n_total}")
-    print(f"  Mapped:                   {n_mapped}")
-    print(f"  Absent in isoform:        {int((out['status'] == 'absent_in_isoform').sum())}")
-    print(f"  Absent in structure:      {int((out['status'] == 'absent_in_structure').sum())}")
+    n_ok = int((out["status"] == "mapped").sum())
+    print(f"  {n_ok} of {len(out)} variants mapped to the isoform")
     return out
 
 
@@ -562,6 +533,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Cryo-EM PDB file (human PMCA2z/a, E1-Ca state).",
     )
     parser.add_argument(
+        "--mapping",
+        type=Path,
+        default=root / "data" / "mutation_mapping_PMCA2za.csv",
+        help="Canonical ATP2B2 -> PMCA2z/a residue correspondence table.",
+    )
+    parser.add_argument(
         "--out-dir",
         type=Path,
         default=root / "results",
@@ -590,10 +567,7 @@ def main(argv: list[str] | None = None) -> int:
     variants = load_schema_asd_variants(args.case, args.control)
     mapping = remap_variants_to_pdb(
         variants,
-        canonical_seq=CANONICAL_SEQ,
-        isoform_seq=ISOFORM_SEQ,
-        pdb_path=args.pdb,
-        chain_id=args.chain,
+        mapping_path=args.mapping,
     )
     mapping_path = args.out_dir / "mutation_mapping_PMCA2za.csv"
     mapping.to_csv(mapping_path, index=False)
