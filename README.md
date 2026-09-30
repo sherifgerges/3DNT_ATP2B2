@@ -103,17 +103,6 @@ shipped as `mutation_mapping_PMCA2za.csv` rather than recomputed by sequence
 alignment. The cryo-EM script also *writes* a file of that name to `results/`;
 the copy in `data/` is the input.
 
-## Limits
-
-- The test identifies regions where case variants concentrate. It does not
-  identify individual causal variants; treat the output as prioritization.
-- Overlapping neighborhoods mean the number of significant centers exceeds the
-  number of distinct clusters. Residues 446 and 448 are two apart; 107, 113 and
-  117 sit together; 885 and 913 are both in the Ca²⁺ site.
-- The pLDDT and PAE filters exclude disordered regions, so signal there is
-  missed rather than reported as absent.
-- Variants seen only in controls are not necessarily benign.
-
 ## License
 
 See `LICENSE`.
