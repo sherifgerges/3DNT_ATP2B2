@@ -17,25 +17,17 @@ Four details define the test:
 
 1. **Distances are minimum interatomic**, not Cα–Cα, so side-chain contacts
    count.
-2. **A residue lies within its own neighborhood.** Variants at the center
-   position contribute to the test at that center. This is set explicitly
-   (`np.fill_diagonal(..., 0.0)`) and applies identically to the
-   unconditional, conditional, AlphaFold3 and cryo-EM analyses.
 3. **Residue pairs with poor mutual confidence are down-weighted.** Where the
    predicted aligned error exceeds 15 Å in *both* directions, the pair is
    pushed to 1000 Å so it cannot form a neighborhood. The diagonal is exempt.
    This applies to AlphaFold3 models only.
 4. **Only variant-bearing residues are tested as centers.**
 
-For the AlphaFold3 model, residues with mean pLDDT ≤ 50 are excluded. The
-cryo-EM structure carries real temperature factors in the B-factor column, so
-no confidence filter is applied there.
+For the AlphaFold3 model, residues with mean pLDDT ≤ 50 are excluded. 
 
 **Multiple testing.** Neighborhoods overlap, so per-center p-values are not
 independent and Bonferroni over tested residues is conservative. The primary
-correction is permutation: case and control labels are shuffled 1,000 times
-with variant positions held fixed, the scan re-run at every tested residue,
-and the minimum p-value per permutation forms the family-wise null. Both
+correction is permutation -  Both
 thresholds are reported.
 
 ## Install
