@@ -166,7 +166,7 @@ def scan_labels(M, case_vec, n_case, n_ctrl):
         if a[k] + b[k] == 0:
             continue
         _, p[k] = fisher_exact(
-            [[a[k], b[k]], [n_case - a[k], n_ctrl - b[k]]], alternative="greater")
+            [[a[k], b[k]], [n_case - a[k], n_ctrl - b[k]]], alternative="two-sided")
     return p, a, b
 
 

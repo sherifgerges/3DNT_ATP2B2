@@ -9,7 +9,7 @@ Workflow
 2. Compute residue-residue minimum atom-atom distances from the cryo-EM PDB.
 3. For each residue carrying at least one variant, define a 15 Angstrom
    spherical neighborhood and test for enrichment of case vs. control variants
-   using a one-sided Fisher's exact test (alternative='greater').
+   using a two-sided Fisher's exact test.
 4. Apply Bonferroni correction across the unique tested residues. Report
    per-residue statistics, the union of Bonferroni-significant neighborhoods,
    and write all outputs to disk.
@@ -414,7 +414,7 @@ def neighborhood_test(
             [nbhd_case, nbhd_ctrl],
             [n_case - nbhd_case, n_ctrl - nbhd_ctrl],
         ]
-        odds_ratio, p_value = fisher_exact(contingency, alternative="greater")
+        odds_ratio, p_value = fisher_exact(contingency, alternative="two-sided")
 
         results.append({
             "aa_pos": resnum,
@@ -450,7 +450,7 @@ def neighborhood_test(
             [union_case, union_ctrl],
             [n_case - union_case, n_ctrl - union_ctrl],
         ]
-        union_or, union_p = fisher_exact(union_contingency, alternative="greater")
+        union_or, union_p = fisher_exact(union_contingency, alternative="two-sided")
         union_stats = {
             "n_significant_centers": len(sig_center_to_nbhd_idx),
             "significant_centers": sorted(sig_center_to_nbhd_idx.keys()),

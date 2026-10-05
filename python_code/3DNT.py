@@ -128,7 +128,7 @@ def neighborhood_test(df, pdb_file, radius, print_neighborhoods=False, print_top
             continue
 
         table = [[nbhd_case, nbhd_ctrl], [n_case - nbhd_case, n_ctrl - nbhd_ctrl]]
-        _, p_value = fisher_exact(table, alternative="greater")
+        _, p_value = fisher_exact(table, alternative="two-sided")
         pval_dict[r] = float(p_value)
 
         if p_value < p_cutoff:
